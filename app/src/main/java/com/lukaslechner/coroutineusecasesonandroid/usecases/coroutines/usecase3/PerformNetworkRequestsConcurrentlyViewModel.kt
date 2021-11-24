@@ -2,9 +2,11 @@ package com.lukaslechner.coroutineusecasesonandroid.usecases.coroutines.usecase3
 
 import androidx.lifecycle.viewModelScope
 import com.lukaslechner.coroutineusecasesonandroid.base.BaseViewModel
-import com.lukaslechner.coroutineusecasesonandroid.mock.AndroidVersion
 import com.lukaslechner.coroutineusecasesonandroid.mock.MockApi
 import com.lukaslechner.coroutineusecasesonandroid.mock.VersionFeatures
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.lang.Exception
@@ -35,8 +37,40 @@ class PerformNetworkRequestsConcurrentlyViewModel(
     }
 
     fun performNetworkRequestsConcurrently() {
+        viewModelScope.launch {
+            uiState.postValue(UiState.Loading)
 
+            val androidVersions = listOf(27, 28, 29)
+
+            val jobList = mutableListOf<Deferred<VersionFeatures?>>()
+            androidVersions.forEach { version ->
+                jobList.add(
+                    async {
+                        // async holds the exception and passes until await is called on it
+                        try {
+                            mockApi.getAndroidVersionFeatures(version)
+                        } catch (e: Exception) {
+                            Timber.e("Call failed for version $version with ${e.message} ")
+                            null
+                        }
+                    }
+                )
+            }
+
+            val resultList = jobList.awaitAll().filterNotNull()
+
+            val resultUiState = if (resultList.isEmpty()) {
+                UiState.Error("All calls actually failed, sorry")
+            } else {
+                UiState.Success(resultList)
+            }
+
+            uiState.postValue(resultUiState)
+
+        }
     }
+
+
 
     private suspend fun MutableList<VersionFeatures>.safeAddFeatureSet(version: Int) {
         try {

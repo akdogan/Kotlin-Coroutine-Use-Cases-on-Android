@@ -1,20 +1,24 @@
 package com.lukaslechner.coroutineusecasesonandroid.playground.coroutinebuilders
 
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
-fun main() = runBlocking<Unit> {
+fun main() = runBlocking {
 
     val startTime = System.currentTimeMillis()
 
-    launch {
-        val result1 = networkCall(1)
-        println("result received: $result1 after ${elapsedMillis(startTime)} ms")
+    val callList = listOf(1, 2, 3)
+    val resultList = mutableListOf<Deferred<String>>()
+
+    callList.forEach { callerId ->
+        resultList.add(
+            async {
+                networkCall(callerId)
+            }
+        )
     }
-    launch {
-        val result2 = networkCall(2)
-        println("result received: $result2 after ${elapsedMillis(startTime)} ms")
+
+    resultList.awaitAll().forEach {
+        println("result received: $it. After ${elapsedMillis(startTime)} ms")
     }
 }
 
